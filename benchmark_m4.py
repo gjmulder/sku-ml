@@ -84,6 +84,7 @@ def gluon_fcast(cfg):
 
     if not use_cluster:
         cfg['num_cells'] = 10
+        cfg['num_layers'] = 1
         cfg['max_epochs'] = 10
         
     logger.info("Params: %s" % cfg)
