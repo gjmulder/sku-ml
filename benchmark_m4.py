@@ -58,10 +58,11 @@ else:
 num_eval_samples = 1
 freq="6D" # 6 days
 prediction_length = 12 # Days
-
+sample_data = [pd.read_csv("sample%d.csv" % idx, index_col=0) for idx in range(1,5)]
+    
 ########################################################################################################
     
-def gluon_fcast(cfg):   
+def gluon_fcast(cfg):        
     def convert(row):
         return({"start": "1970-01-01 00:00", "target": row.values, 'id': row.name})  
 
@@ -88,7 +89,6 @@ def gluon_fcast(cfg):
         cfg['max_epochs'] = 10
         
     logger.info("Params: %s" % cfg)
-    sample_data = [pd.read_csv("sample%d.csv" % idx, index_col=0) for idx in range(1,5)]
     results = []
     for idx in range(1, 5):
         sample_name = "sample%d.csv" % idx
