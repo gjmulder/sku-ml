@@ -129,7 +129,7 @@ def call_hyperopt():
         'num_layers'                 : hp.choice('num_layers', [3, 5, 7]),
         'dropout_rate'               : hp.uniform('dropout_rate', 0.05, 0.15),
 
-        'max_epochs'                 : hp.choice('max_epochs', [1]),
+        'max_epochs'                 : hp.choice('max_epochs', [1000]),
         'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [50, 100]),
         'batch_size'                 : hp.choice('batch_size', [32, 64, 128, 256]),
         'patience'                   : hp.choice('patience', [16, 32, 64, 128]),
