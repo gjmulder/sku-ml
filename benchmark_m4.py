@@ -31,6 +31,7 @@ from gluonts.evaluation import Evaluator
 from gluonts.evaluation.backtest import make_evaluation_predictions
 from gluonts.model.deepar import DeepAREstimator
 from gluonts.trainer import Trainer
+import json
 
 rand_seed = 42
 mx.random.seed(rand_seed, ctx='all')
@@ -56,15 +57,16 @@ else:
 #    time_features = [HourOfDay(), DayOfWeek()]
 
 num_eval_samples = 1
-freq="6D" # 6 days
-prediction_length = 12 # Days
-sample_data = [pd.read_csv("sample%d.csv" % idx, index_col=0) for idx in range(1,5)]
+freq="1D" # 1 day
+prediction_length = 12 # days
+
+sample_data = [pd.read_csv("sample%d.csv" % idx, index_col=0) for idx in range(1, 6)]
     
 ########################################################################################################
     
 def gluon_fcast(cfg):        
     def convert(row):
-        return({"start": "1970-01-01 00:00", "target": row.values, 'id': row.name})  
+        return({"start": "1970-01-01 00:00", "target": row.dropna().values, 'id': row.name})  
 
     def evaluate(sample_name, gluon_data_train, gluon_data_test, estimator):                
         estimator = estimator(prediction_length=prediction_length, freq=freq)
@@ -77,7 +79,8 @@ def gluon_fcast(cfg):
         forecast_it, ts_it = make_evaluation_predictions(gluon_data_test, predictor=predictor, num_eval_samples=num_eval_samples)
         
         agg_metrics, item_metrics = Evaluator()(ts_it, forecast_it, num_series=len(gluon_data_test))
-#        sMSE = agg_metrics["MSE"] / agg_metrics["target_sum_squared"]
+        print(json.dumps(agg_metrics, indent=4))
+
         logger.info("Name: %s, MSE: %.3f" % (sample_name, agg_metrics["MSE"]))
         return agg_metrics["MSE"]
 
@@ -86,53 +89,56 @@ def gluon_fcast(cfg):
     if not use_cluster:
         cfg['num_cells'] = 10
         cfg['num_layers'] = 1
-        cfg['max_epochs'] = 10
+        cfg['max_epochs'] = 2
         
     logger.info("Params: %s" % cfg)
     results = []
-    for idx in range(1, 5):
-        sample_name = "sample%d.csv" % idx
-        data_train = sample_data[0].iloc[:, :-2 * prediction_length].apply(convert, axis=1).tolist()
-        data_test  = sample_data[0].iloc[:, :-1 * prediction_length].apply(convert, axis=1).tolist()
+    for idx in range(0, 5):
+        sample_name = "sample%d.csv" % (idx + 1)
+        data_train = sample_data[idx].iloc[:, :-2 * prediction_length].apply(convert, axis=1).tolist()
+        data_test  = sample_data[idx].iloc[:, :-1 * prediction_length].apply(convert, axis=1).tolist()
         gluon_data_train = ListDataset(data_train, freq=freq)
         gluon_data_test = ListDataset(data_test, freq=freq)
     
-        try:    
-            estimator = partial(
-                DeepAREstimator,
-                num_cells=cfg['num_cells'],
-                num_layers=cfg['num_layers'],
-                dropout_rate=cfg['dropout_rate'],
-                trainer=Trainer(
-                    mx.Context("gpu"),
-                    epochs=cfg['max_epochs'],
-                    num_batches_per_epoch=cfg['num_batches_per_epoch'],
-                    batch_size=cfg['batch_size'],
-                    patience=cfg['patience'],
-                    
-                    learning_rate=cfg['learning_rate'],
-                    learning_rate_decay_factor=cfg['learning_rate_decay_factor'],
-                    minimum_learning_rate=cfg['minimum_learning_rate'],
-                    weight_decay=cfg['weight_decay']
-                ))
-            results.append(evaluate(sample_name, gluon_data_train, gluon_data_test, estimator))
-        except Exception as e:
-            logger.warning('Warning on line %d, exception: %s' % (sys.exc_info()[-1].tb_lineno, str(e)))
-            return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL"), 'dataset': sample_name}
+#        try:    
+        estimator = partial(
+            DeepAREstimator,
+            num_cells=cfg['num_cells'],
+            num_layers=cfg['num_layers'],
+            dropout_rate=cfg['dropout_rate'],
+            trainer=Trainer(
+                mx.Context("gpu"),
+                epochs=cfg['max_epochs'],
+                num_batches_per_epoch=cfg['num_batches_per_epoch'],
+                batch_size=cfg['batch_size'],
+                patience=cfg['patience'],
+                
+                learning_rate=cfg['learning_rate'],
+                learning_rate_decay_factor=cfg['learning_rate_decay_factor'],
+                minimum_learning_rate=cfg['minimum_learning_rate'],
+                weight_decay=cfg['weight_decay']
+            ))
+        
+        mse = evaluate(sample_name, gluon_data_train, gluon_data_test, estimator)
+        logger.info("MSE: %.3f" % mse)
+        results.append(mse)
+#        except Exception as e:
+#            logger.warning('Warning on line %d, exception: %s' % (sys.exc_info()[-1].tb_lineno, str(e)))
+#            return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL"), 'dataset': sample_name}
 
     logger.info(results)
     return {'loss': mean(results), 'status': STATUS_OK, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL"), 'dataset': sample_name}
 
 def call_hyperopt():
     space = {
-        'num_cells'                  : hp.choice('num_cells', [200, 400]),
-        'num_layers'                 : hp.choice('num_layers', [3, 5, 7]),
+        'num_cells'                  : hp.choice('num_cells', [50, 100, 200, 400]),
+        'num_layers'                 : hp.choice('num_layers', [1, 2, 3, 5]),
         'dropout_rate'               : hp.uniform('dropout_rate', 0.05, 0.15),
 
         'max_epochs'                 : hp.choice('max_epochs', [1000]),
-        'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [50, 100]),
-        'batch_size'                 : hp.choice('batch_size', [32, 64, 128, 256]),
-        'patience'                   : hp.choice('patience', [16, 32, 64, 128]),
+        'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [25, 50, 100]),
+        'batch_size'                 : hp.choice('batch_size', [16, 32, 64, 128]),
+        'patience'                   : hp.choice('patience', [16, 32, 64]),
         
         'learning_rate'              : hp.uniform('learning_rate', 1e-04, 1e-01),
         'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.1, 0.9),

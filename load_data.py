@@ -6,7 +6,7 @@ Created on Thu Nov  7 09:11:38 2019
 @author: mulderg
 """
 from gluonts.dataset.common import ListDataset
-from gluonts.model.deepar import DeepAREstimator
+from gluonts.model.simple_feedforward import SimpleFeedForwardEstimator
 from gluonts.trainer import Trainer
 from gluonts.evaluation.backtest import make_evaluation_predictions
 from gluonts.evaluation import Evaluator
@@ -29,10 +29,12 @@ def forecast_sample(data):
     gluon_data_test = ListDataset(data_test, freq=freq)
     
     #train_entry = next(iter(gluon_data_train))
-    estimator = DeepAREstimator(
+    estimator = SimpleFeedForwardEstimator(
         freq=freq,
         prediction_length=prediction_length,
-        trainer=Trainer(epochs=10, num_batches_per_epoch=10)
+        num_hidden_dimensions = [100, 100, 100, 100, 100],
+        trainer=Trainer(epochs=100, num_batches_per_epoch=1000),
+        
     )
     predictor = estimator.train(gluon_data_train)
     
