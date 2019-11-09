@@ -59,6 +59,7 @@ else:
 num_eval_samples = 1
 freq="1D"
 prediction_length = 12
+max_sMSE = 3.5
 
 sample_data = [pd.read_csv("sample%d.csv" % idx, index_col=0) for idx in range(1, 6)]
     
@@ -116,7 +117,7 @@ def gluon_fcast(cfg):
 
 #        trainer=Trainer(
 #            mx.Context("gpu"),
-#            epochs=50,
+#            epochs=10,
 #        )
         trainer=Trainer(
             mx.Context("gpu"),
@@ -199,28 +200,32 @@ def gluon_fcast(cfg):
     
     results = []
     for idx in range(1, 6):
-        sample_name = "sample%d.csv" % idx
         logger.info("Sample # %s" % idx)
         try:
-            sMSE_n = forecast(sample_data[idx-1].iloc[ : , : -prediction_length], cfg) # Drop last prediction_length of sample data for final evaluation
-            results.append(sMSE_n)
+            sMSE_idx = forecast(sample_data[idx-1].iloc[ : , : -prediction_length], cfg) # Drop last prediction_length of sample data for final evaluation
+            results.append(sMSE_idx)
+            if sMSE_idx > max_sMSE:
+                logger.warning("Aborting run, sMSE_idx > %f" % max_sMSE)
+                return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL"), 'index' : idx, 'sMSE_idx': sMSE_idx}
+            
         except Exception as e:
-            logger.warning('Warning on line %d, exception: %s' % (sys.exc_info()[-1].tb_lineno, str(e)))
-            return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL"), 'dataset': sample_name}
-
+            exc_str = 'Warning on line %d, exception: %s' % (sys.exc_info()[-1].tb_lineno, str(e))
+            logger.error(exc_str)
+            return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL"), 'exception': exc_str}
+        
     logger.info("sMSEs per sample: %s" % [round(result, 3) for result in results])
     sMSE_final = mean(results)
     logger.info("Final sMSE: %.3f" % sMSE_final)
-    return {'loss': sMSE_final, 'status': STATUS_OK, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL"), 'dataset': sample_name}
+    return {'loss': sMSE_final, 'status': STATUS_OK, 'cfg' : cfg, 'build_url' : environ.get("BUILD_URL")}
 
 def call_hyperopt():
     dropout_rate = [0.05, 0.15]
     space = {
         'trainer' : {
-            'max_epochs'                 : hp.choice('max_epochs', [500, 1000, 2000, 4000]),
+            'max_epochs'                 : hp.choice('max_epochs', [125, 250, 500, 1000, 2000, 4000]),
             'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [25, 50, 100]),
-            'batch_size'                 : hp.choice('batch_size', [32, 64]),
-            'patience'                   : hp.choice('patience', [8, 16, 32]),
+            'batch_size'                 : hp.choice('batch_size', [25, 50, 100, 200]),
+            'patience'                   : hp.choice('patience', [5, 10, 20, 40]),
             
             'learning_rate'              : hp.uniform('learning_rate', 1e-04, 1e-02),
             'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.3, 0.8),
@@ -230,7 +235,9 @@ def call_hyperopt():
         'model' : hp.choice('model', [
                     {
                         'type'                       : 'SimpleFeedForwardEstimator',
-                        'num_hidden_dimensions'      : hp.choice('num_hidden_dimensions', [[50], [50, 50], [100, 50], [100, 100]]),
+                        'num_hidden_dimensions'      : hp.choice('num_hidden_dimensions', [[25], [50], [100],
+                                                                                           [25, 25], [50, 25], [50, 50], [100, 50], [100, 100],
+                                                                                           [100, 50, 50]])
                     },
                     {
                         'type'                       : 'DeepAREstimator',
@@ -270,7 +277,7 @@ def call_hyperopt():
         trials = MongoTrials('mongo://heika:27017/sku-%s/jobs' % version, exp_key=exp_key)
         best = fmin(gluon_fcast, space, rstate=np.random.RandomState(rand_seed), algo=tpe.suggest, show_progressbar=False, trials=trials, max_evals=200)
     else:
-        best = fmin(gluon_fcast, space, rstate=np.random.RandomState(rand_seed), algo=tpe.suggest, show_progressbar=False, max_evals=20)
+        best = fmin(gluon_fcast, space, algo=tpe.suggest, show_progressbar=False, max_evals=20)
         
     params = space_eval(space, best)   
     return(params)
