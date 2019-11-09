@@ -22,6 +22,7 @@ from hyperopt.mongoexp import MongoTrials
 from os import environ
 import sys
 from math import log
+#from statistics import mean
 
 import mxnet as mx
 from gluonts.dataset.common import ListDataset
@@ -203,14 +204,14 @@ def gluon_fcast(cfg):
         try:
             sMSE_idx = forecast(sample_data[idx-1].iloc[ : , : -prediction_length], cfg) # Drop last prediction_length of sample data for final evaluation
             results.append(sMSE_idx)
-            if idx > 1 and np.mean(sMSE_idx) > max_sMSE:
-                logger.warning("Aborting run due to high mean(sMSE) = %.3f > %.3f" % (np.mean(sMSE_idx), max_sMSE))
+            if idx > 1 and np.mean(results) > max_sMSE:
+                logger.warning("Aborting run due to high mean(sMSE) = %.3f > %.3f" % (np.mean(results), max_sMSE))
                 return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'results': results, 'build_url' : environ.get("BUILD_URL")}
             
         except Exception as e:
             exc_str = 'Warning on line %d, exception: %s' % (sys.exc_info()[-1].tb_lineno, str(e))
             logger.error(exc_str)
-            return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'results': results, 'exception': exc_str, 'build_url' : environ.get("BUILD_URL"), }
+            return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'results': results, 'exception': exc_str, 'build_url' : environ.get("BUILD_URL")}
         
     logger.info("sMSEs per sample: %s" % [round(result, 3) for result in results])
     sMSE_final = np.mean(results)
