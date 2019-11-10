@@ -206,4 +206,29 @@ def forecast(data, cfg):
     
 if __name__ == "__main__":
     cfg = 
+      "result" : {
+                "loss" : 2.6898342036076097,
+                "status" : "ok",
+                "cfg" : {
+                        "model" : {
+                                "act_type" : "softrelu",
+                                "inner_ff_dim_scale" : 5,
+                                "model_dim" : 16,
+                                "num_heads" : 8,
+                                "post_seq" : "drn",
+                                "pre_seq" : "dn",
+                                "trans_dropout_rate" : 0.1072951908699155,
+                                "type" : "TransformerEstimator"
+                        },
+                        "trainer" : {
+                                "batch_size" : 200,
+                                "learning_rate" : 0.0014557112535426254,
+                                "learning_rate_decay_factor" : 0.7622377071816162,
+                                "max_epochs" : 500,
+                                "minimum_learning_rate" : 0.0000018515726634949832,
+                                "num_batches_per_epoch" : 25,
+                                "patience" : 40,
+                                "weight_decay" : 2.6747692257944095e-8
+                        }
+                },
     forecast(sample_data, cfg)
