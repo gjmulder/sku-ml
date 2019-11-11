@@ -69,13 +69,15 @@ def gluon_fcast(cfg):
     #   errors_mse <- c(errors_mse, mean((as.numeric(rep(frc[i,j], fh))-as.numeric(outsample))^2)/(mean(insample)^2))
     def sMSE(insample, outsample, y_hat):
         err = np.mean((y_hat - outsample) * (y_hat - outsample)) / (np.mean(insample) * np.mean(insample))
-        return(err)
+        if np.isnan(err):
+            raise ValueError("sMSE returned NaN")
+        return err
          
     def compute_errors(train, test, y_hats):
         errs = []
         for idx in range(len(y_hats)):
-            errs.append(sMSE(train.iloc[idx], test.iloc[idx], y_hats[idx]))
-        return(np.mean(errs))
+            errs.append(sMSE(train.iloc[idx].dropna().values, test.iloc[idx].values, y_hats.iloc[idx].values))
+        return np.mean(errs)
             
     def convert_7day(ts_6day):
 #        print(ts_6day)
@@ -93,22 +95,22 @@ def gluon_fcast(cfg):
 #            print(ts_7day.tail(21))
 #            print(first_valid)
             
-        return({
+        return {
             "id"     : ts_6day.name,
             "start"  : str(first_valid),
             "end"    : str(ts_7day.index[-1]),
             "target" : ts_7day[first_valid:].fillna(0).values, 
-        })    
+        }    
     
     def add_static_idx(ts, idx):
         ts['feat_static_cat'] = [idx]
-        return(ts)
+        return ts
         
     def forecast(data, cfg):
         logger.info("Params: %s " % cfg)
 #        print(data.describe())
 
-        train_6day = data.iloc[ : , : -prediction_length]
+        train_6day = data.iloc[ : , :-prediction_length]
         train_7day = train_6day.apply(convert_7day, axis=1).tolist()
         
         # Add a static index categorical
@@ -188,13 +190,13 @@ def gluon_fcast(cfg):
         # Add DateTime index to y_hats so we can drop Sundays
         y_hats_start_date = pd.to_datetime(train_7day[0]['end']) + timedelta(days=1)
         y_hats_srs = [pd.Series(y_hat, pd.date_range(start=y_hats_start_date, periods=prediction_length+2, freq=freq)) for y_hat in y_hats]
-        y_hats_6day = [y_hat_srs[y_hat_srs.index.day_name() != "Sunday"].values for y_hat_srs in y_hats_srs]
+        y_hats_6day = pd.DataFrame([y_hat_srs[y_hat_srs.index.day_name() != "Sunday"].values for y_hat_srs in y_hats_srs])
         
         # Compute errors
         test_6day = data.iloc[ : , -prediction_length:]
         sMSE_n = compute_errors(train_6day, test_6day, y_hats_6day)
         logger.info("sMSE : %.3f" % sMSE_n)
-        return(sMSE_n)
+        return sMSE_n
 
     ########################################################################################################
     
@@ -278,9 +280,8 @@ def call_hyperopt():
         best = fmin(gluon_fcast, space, rstate=np.random.RandomState(rand_seed), algo=tpe.suggest, show_progressbar=False, trials=trials, max_evals=200)
     else:
         best = fmin(gluon_fcast, space, algo=tpe.suggest, show_progressbar=False, max_evals=20)
-        
-    params = space_eval(space, best)   
-    return(params)
+         
+    return space_eval(space, best) 
     
 if __name__ == "__main__":
     params = call_hyperopt()
