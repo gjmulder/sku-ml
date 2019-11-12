@@ -58,7 +58,7 @@ else:
 #    time_features = [HourOfDay(), DayOfWeek()]
 
 num_eval_samples = 1
-freq="1D"
+freq="1B"
 prediction_length = 12
 dl_prediction_length=1
 max_sMSE = 4.0
@@ -149,7 +149,7 @@ def forecast(data, cfg):
         weight_decay=cfg['trainer']['weight_decay'],
     )
 
-    lags_seq=[1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19, 20, 21, 22, 23, 24, 30, 36, 42, 48, 54, 60, 66, 72]
+    lags_seq=[1,2,3,4,5,6,7,8,9,10,11,12,13, 17,18,19, 23,24,25, 26,27,28, 29,30,31, 35,36,37, 41,42,43, 47,48,49, 53,54,55, 59,60,61]
     
     if cfg['model']['type'] == 'SimpleFeedForwardEstimator':
         estimator = SimpleFeedForwardEstimator(
@@ -235,19 +235,19 @@ def gluon_fcast(cfg):
     results = []
     for idx in range(1, 6):
         logger.info("Sample # %s" % idx)
-#        try:
+        try:
             # Drop last prediction_length of sample data for final evaluation
 #            sMSE_idx = forecast(sample_data[idx-1].iloc[300:500, : -prediction_length], cfg) 
-        sMSE_idx = forecast(sample_data[idx-1].iloc[ : , : -prediction_length], cfg)
-        results.append(sMSE_idx)
-        if idx > 1 and np.mean(results) > max_sMSE:
-            logger.warning("Aborting run due to high mean(sMSE) = %.3f > %.3f" % (np.mean(results), max_sMSE))
-            return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'results': results, 'build_url' : environ.get("BUILD_URL")}
+            sMSE_idx = forecast(sample_data[idx-1].iloc[ : , : -prediction_length], cfg)
+            results.append(sMSE_idx)
+            if idx > 1 and np.mean(results) > max_sMSE:
+                logger.warning("Aborting run due to high mean(sMSE) = %.3f > %.3f" % (np.mean(results), max_sMSE))
+                return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'results': results, 'build_url' : environ.get("BUILD_URL")}
             
-#        except Exception as e:
-#            exc_str = '\n%s' % traceback.format_exc()
-#            logger.error(exc_str)
-#            return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'results': results, 'exception': exc_str, 'build_url' : environ.get("BUILD_URL")}
+        except Exception as e:
+            exc_str = '\n%s' % traceback.format_exc()
+            logger.error(exc_str)
+            return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'results': results, 'exception': exc_str, 'build_url' : environ.get("BUILD_URL")}
         
     logger.info("sMSEs per sample: %s" % [round(result, 3) for result in results])
     sMSE_final = np.mean(results)
@@ -311,7 +311,7 @@ def call_hyperopt():
         exp_key = "%s" % str(date.today())
         logger.info("exp_key for this job is: %s" % exp_key)
         trials = MongoTrials('mongo://heika:27017/sku-%s/jobs' % version, exp_key=exp_key)
-        best = fmin(gluon_fcast, space, rstate=np.random.RandomState(rand_seed), algo=tpe.suggest, show_progressbar=False, trials=trials, max_evals=200)
+        best = fmin(gluon_fcast, space, rstate=np.random.RandomState(rand_seed), algo=tpe.suggest, show_progressbar=False, trials=trials, max_evals=500)
     else:
         best = fmin(gluon_fcast, space, algo=tpe.suggest, show_progressbar=False, max_evals=20)
          
