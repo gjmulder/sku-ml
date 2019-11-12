@@ -144,23 +144,23 @@ def forecast(data, cfg):
         train_dict = [ts_to_dict_1hot(idx, train_data_list[idx], train_1hot) for idx in range(len(train_data_list))]
     gluon_train = ListDataset(train_dict, freq=freq)
 
-    trainer=Trainer(
-        mx.Context("gpu"),
-        epochs=5,
-    )
-    
 #    trainer=Trainer(
 #        mx.Context("gpu"),
-#        epochs=cfg['trainer']['max_epochs'],
-#        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
-#        batch_size=cfg['trainer']['batch_size'],
-#        patience=cfg['trainer']['patience'],
-#        
-#        learning_rate=cfg['trainer']['learning_rate'],
-#        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
-#        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
-#        weight_decay=cfg['trainer']['weight_decay'],
+#        epochs=5,
 #    )
+    
+    trainer=Trainer(
+        mx.Context("gpu"),
+        epochs=cfg['trainer']['max_epochs'],
+        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
+        batch_size=cfg['trainer']['batch_size'],
+        patience=cfg['trainer']['patience'],
+        
+        learning_rate=cfg['trainer']['learning_rate'],
+        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
+        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
+        weight_decay=cfg['trainer']['weight_decay'],
+    )
 
     # lags with a period of 6 +/-1, and month end (maybe)
     lags_seq=[1,2,3,4,5,6,7,8,9,10,11,12,13, 17,18,19, 23,24,25, 26,27,28, 29,30,31, 35,36,37, 41,42,43, 47,48,49, 53,54,55, 59,60,61]
