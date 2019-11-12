@@ -114,12 +114,25 @@ def ts_to_dict_1hot(idx, ts, one_hot):
     } 
 #    print("Target len: %d, feat_dynamic_real shape: %s" % (len(rec['target']), rec['feat_dynamic_real'].shape))
     return rec
+
+def load_greek_holidays():
+    holidays = pd.read_csv("greek_holidays.csv")
+    holidays['date'] = pd.to_datetime(holidays['date'])
+    holidays.set_index('date', inplace=True)
+    
+    dates = pd.date_range("1/1/2017", "31/12/2017", freq="1D")
+    all_days = pd.DataFrame({'idx' : [str(idx) for idx in range(1, len(dates)+1)]}, index = dates).join(holidays)
+    hols_1_hot = pd.get_dummies(all_days['type'])
+    hols_1_hot.set_index(all_days['idx'], inplace=True)
+    return(hols_1_hot.transpose())
     
 def forecast(data, cfg):
     logger.info("Params: %s " % cfg)
-#        print(data.describe())
+
     dow_1_hot = pd.get_dummies(pd.Series(np.arange(1, data.shape[1] + 6) % 6)).iloc[:data.shape[1],1:].transpose()
     dow_1_hot.columns = data.columns
+#    hols_1_hot = load_greek_holidays()[data.columns.tolist()]
+#    all_1_hot = dow_1_hot.append(hols_1_hot)
 
     train_data = data.iloc[ : , :-prediction_length]
     train_1hot = dow_1_hot.iloc[ : , :-prediction_length]
@@ -131,24 +144,25 @@ def forecast(data, cfg):
         train_dict = [ts_to_dict_1hot(idx, train_data_list[idx], train_1hot) for idx in range(len(train_data_list))]
     gluon_train = ListDataset(train_dict, freq=freq)
 
-#    trainer=Trainer(
-#        mx.Context("gpu"),
-#        epochs=5,
-#    )
-    
     trainer=Trainer(
         mx.Context("gpu"),
-        epochs=cfg['trainer']['max_epochs'],
-        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
-        batch_size=cfg['trainer']['batch_size'],
-        patience=cfg['trainer']['patience'],
-        
-        learning_rate=cfg['trainer']['learning_rate'],
-        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
-        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
-        weight_decay=cfg['trainer']['weight_decay'],
+        epochs=5,
     )
+    
+#    trainer=Trainer(
+#        mx.Context("gpu"),
+#        epochs=cfg['trainer']['max_epochs'],
+#        num_batches_per_epoch=cfg['trainer']['num_batches_per_epoch'],
+#        batch_size=cfg['trainer']['batch_size'],
+#        patience=cfg['trainer']['patience'],
+#        
+#        learning_rate=cfg['trainer']['learning_rate'],
+#        learning_rate_decay_factor=cfg['trainer']['learning_rate_decay_factor'],
+#        minimum_learning_rate=cfg['trainer']['minimum_learning_rate'],
+#        weight_decay=cfg['trainer']['weight_decay'],
+#    )
 
+    # lags with a period of 6 +/-1, and month end (maybe)
     lags_seq=[1,2,3,4,5,6,7,8,9,10,11,12,13, 17,18,19, 23,24,25, 26,27,28, 29,30,31, 35,36,37, 41,42,43, 47,48,49, 53,54,55, 59,60,61]
     
     if cfg['model']['type'] == 'SimpleFeedForwardEstimator':
@@ -238,7 +252,8 @@ def gluon_fcast(cfg):
         try:
             # Drop last prediction_length of sample data for final evaluation
 #            sMSE_idx = forecast(sample_data[idx-1].iloc[300:500, : -prediction_length], cfg) 
-            sMSE_idx = forecast(sample_data[idx-1].iloc[ : , : -prediction_length], cfg)
+#            sMSE_idx = forecast(sample_data[idx-1].iloc[ : , : -prediction_length], cfg)
+            sMSE_idx = forecast(sample_data[idx-1], cfg)
             results.append(sMSE_idx)
             if idx > 1 and np.mean(results) > max_sMSE:
                 logger.warning("Aborting run due to high mean(sMSE) = %.3f > %.3f" % (np.mean(results), max_sMSE))
@@ -259,14 +274,14 @@ def call_hyperopt():
     space = {
         'trainer' : {
             'max_epochs'                 : hp.choice('max_epochs', [125, 250, 500, 1000, 2000, 4000]),
-            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [25, 50, 100]),
-            'batch_size'                 : hp.choice('batch_size', [25, 50, 100, 200]),
-            'patience'                   : hp.choice('patience', [5, 10, 20, 40]),
+            'num_batches_per_epoch'      : hp.choice('num_batches_per_epoch', [5, 10, 20, 40, 80]),
+            'batch_size'                 : hp.choice('batch_size', [100, 200, 400]),
+            'patience'                   : hp.choice('patience', [20, 40, 80]),
             
             'learning_rate'              : hp.uniform('learning_rate', 1e-04, 1e-02),
-            'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.3, 0.8),
+            'learning_rate_decay_factor' : hp.uniform('learning_rate_decay_factor', 0.4, 0.9),
             'minimum_learning_rate'      : hp.loguniform('minimum_learning_rate', log(1e-06), log(0.5e-04)),
-            'weight_decay'               : hp.uniform('weight_decay', 0.5e-08, 5.0e-08),
+            'weight_decay'               : hp.uniform('weight_decay', 00.5e-08, 10.0e-08),
         },
         'model' : hp.choice('model', [
                     {
@@ -285,14 +300,14 @@ def call_hyperopt():
                     },
                     {
                         'type'                       : 'DeepAREstimator',
-                        'num_cells'                  : hp.choice('num_cells', [25, 50, 100, 200, 400]),
+                        'num_cells'                  : hp.choice('num_cells', [200, 400, 600]),
                         'num_layers'                 : hp.choice('num_layers', [1, 3, 5, 7]),
                         
                         'dar_dropout_rate'           : hp.uniform('dar_dropout_rate', dropout_rate[0], dropout_rate[1]),
                     },
                     {
                         'type'                       : 'TransformerEstimator',
-                        'model_dim'                  : hp.choice('model_dim', [16, 32, 64]),
+                        'model_dim'                  : hp.choice('model_dim', [8, 16, 32, 64]),
                         'inner_ff_dim_scale'         : hp.choice('inner_ff_dim_scale', [3, 4, 5]),
                         'pre_seq'                    : hp.choice('pre_seq', ['dn']),
                         'post_seq'                   : hp.choice('post_seq', ['drn']),

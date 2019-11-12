@@ -64,17 +64,6 @@ def compute_errors(train, test, y_hats):
     for idx in range(len(y_hats)):
         errs.append(sMSE(train.iloc[idx].dropna().values, test.iloc[idx].values, y_hats.iloc[idx].values))
     return np.mean(errs)
-
-def load_greek_holidays():
-    holidays = pd.read_csv("greek_holidays.csv")
-    holidays['date'] = pd.to_datetime(holidays['date'])
-    holidays.set_index('date', inplace=True)
-    
-    dates = pd.date_range("1/1/2017", "31/12/2017", freq="1D")
-    all_days = pd.DataFrame({'idx' : [str(idx) for idx in range(1, len(dates)+1)]}, index = dates).join(holidays)
-    hols_1_hot = pd.get_dummies(all_days['type'])
-    hols_1_hot.set_index(all_days['idx'], inplace=True)
-    return(hols_1_hot.transpose())
     
 #def convert_7day(ts_6day):
 ##        print(ts_6day)
@@ -125,6 +114,17 @@ def ts_to_dict_1hot(idx, ts, one_hot):
     } 
 #    print("Target len: %d, feat_dynamic_real shape: %s" % (len(rec['target']), rec['feat_dynamic_real'].shape))
     return rec
+
+def load_greek_holidays():
+    holidays = pd.read_csv("greek_holidays.csv")
+    holidays['date'] = pd.to_datetime(holidays['date'])
+    holidays.set_index('date', inplace=True)
+    
+    dates = pd.date_range("1/1/2017", "31/12/2017", freq="1D")
+    all_days = pd.DataFrame({'idx' : [str(idx) for idx in range(1, len(dates)+1)]}, index = dates).join(holidays)
+    hols_1_hot = pd.get_dummies(all_days['type'])
+    hols_1_hot.set_index(all_days['idx'], inplace=True)
+    return(hols_1_hot.transpose())
     
 def forecast(data, cfg):
     logger.info("Params: %s " % cfg)
@@ -162,6 +162,7 @@ def forecast(data, cfg):
         weight_decay=cfg['trainer']['weight_decay'],
     )
 
+    # lags with a period of 6 +/-1, and month end (maybe)
     lags_seq=[1,2,3,4,5,6,7,8,9,10,11,12,13, 17,18,19, 23,24,25, 26,27,28, 29,30,31, 35,36,37, 41,42,43, 47,48,49]
     
     if cfg['model']['type'] == 'SimpleFeedForwardEstimator':
