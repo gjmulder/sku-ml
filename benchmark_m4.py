@@ -23,7 +23,7 @@ from hyperopt.mongoexp import MongoTrials
 from os import environ
 import traceback
 from math import log
-from itertools import repeat
+#from itertools import repeat
 
 import mxnet as mx
 from gluonts.dataset.common import ListDataset
@@ -168,7 +168,7 @@ def forecast(data, cfg):
     if cfg['model']['type'] == 'SimpleFeedForwardEstimator':
         estimator = SimpleFeedForwardEstimator(
             freq=freq,
-            prediction_length=dl_prediction_length, 
+            prediction_length=prediction_length, 
             num_hidden_dimensions = cfg['model']['num_hidden_dimensions'],
             num_parallel_samples=1,
             trainer=trainer)
@@ -176,7 +176,7 @@ def forecast(data, cfg):
     if cfg['model']['type'] == 'DeepFactorEstimator': 
          estimator = DeepFactorEstimator(
             freq=freq,
-            prediction_length=dl_prediction_length,
+            prediction_length=prediction_length,
             num_hidden_global=cfg['model']['num_hidden_global'], 
             num_layers_global=cfg['model']['num_layers_global'], 
             num_factors=cfg['model']['num_factors'], 
@@ -187,7 +187,7 @@ def forecast(data, cfg):
     if cfg['model']['type'] == 'DeepAREstimator':            
         estimator = DeepAREstimator(
             freq=freq,
-            prediction_length=dl_prediction_length,        
+            prediction_length=prediction_length,        
             num_cells=cfg['model']['num_cells'],
             num_layers=cfg['model']['num_layers'],        
             dropout_rate=cfg['model']['dar_dropout_rate'],
@@ -201,7 +201,7 @@ def forecast(data, cfg):
     if cfg['model']['type'] == 'TransformerEstimator': 
          estimator = TransformerEstimator(
             freq=freq,
-            prediction_length=dl_prediction_length,
+            prediction_length=prediction_length,
             model_dim=cfg['model']['model_dim'], 
             inner_ff_dim_scale=cfg['model']['inner_ff_dim_scale'],
             pre_seq=cfg['model']['pre_seq'], 
@@ -236,8 +236,8 @@ def forecast(data, cfg):
     )
     
 #    tss = list(ts_it)
-    y_hats = [yhat.samples.reshape(dl_prediction_length) for yhat in list(forecast_it)]
-    y_hats = [repeat(float(yhat), prediction_length) for yhat in y_hats]
+    y_hats = [yhat.samples.reshape(prediction_length) for yhat in list(forecast_it)]
+#    y_hats = [repeat(float(yhat), prediction_length) for yhat in y_hats]
     
     # Compute errors        
     test = data.iloc[ : , -prediction_length:]
@@ -255,8 +255,8 @@ def gluon_fcast(cfg):
 #            sMSE_idx = forecast(sample_data[idx-1].iloc[ : , : -prediction_length], cfg)
             sMSE_idx = forecast(sample_data[idx-1], cfg)
             results.append(sMSE_idx)
-            if idx > 1 and np.mean(results) > max_sMSE:
-                logger.warning("Aborting run due to high mean(sMSE) = %.3f > %.3f" % (np.mean(results), max_sMSE))
+            if (sMSE_idx > 2 * max_sMSE) or (idx > 1 and np.mean(results) > max_sMSE):
+                logger.warning("Aborting run due to large sMSEs: %s" % results)
                 return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'results': results, 'build_url' : environ.get("BUILD_URL")}
             
         except Exception as e:
