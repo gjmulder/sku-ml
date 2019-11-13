@@ -908,7 +908,7 @@ nerrors <- c("sME", "sMAE", "sMSE")
 fh = 12
 model_set <- "ML-G"
 
-cl = registerDoSNOW(makeCluster(20, type = "SOCK"))
+cl = registerDoSNOW(makeCluster(10, type = "SOCK"))
 
 #Forecasting and estimation of errors
 
