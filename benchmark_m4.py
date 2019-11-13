@@ -58,7 +58,7 @@ else:
 #    time_features = [HourOfDay(), DayOfWeek()]
 
 num_eval_samples = 1
-freq="1B"
+freq="D"
 prediction_length = 12
 dl_prediction_length=1
 max_sMSE = 4.0
