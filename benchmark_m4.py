@@ -247,7 +247,7 @@ def forecast(data, cfg):
 
 def gluon_fcast(cfg):        
     results = []
-    for idx in range(1, 6):
+    for idx in [2, 4, 1, 3, 5]:
         logger.info("Sample # %s" % idx)
         try:
             # Drop last prediction_length of sample data for final evaluation
