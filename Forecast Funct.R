@@ -3,7 +3,7 @@ library(doSNOW)
 library(forecast)
 library(lubridate)
 library(plyr)
-library(foreach)
+# library(foreach)
 library(ggplot2)
 library(tsintermittent)
 library(EnvStats)
@@ -563,22 +563,22 @@ ML_forc_methods <- function(tsid){
   #ML methods
   Methods <- cbind(Methods, MLP_frc(insample, fh, ni)) #MLP
 
-  # invisible(capture.output(y <- BNN_frc(insample, fh, ni))) #BNN
-  # Methods <- cbind(Methods, y)
-  # 
-  # Methods <- cbind(Methods, GRNN_frc(insample, fh, ni)) #GRNN
-  # 
-  # Methods <- cbind(Methods, RBF_frc(insample, fh, ni)) #RBF
-  # 
-  # Methods <- cbind(Methods, CART_frc(insample, fh, ni)) #CART
-  # 
-  # Methods <- cbind(Methods, RF_frc(insample, fh, ni)) #RF
-  # 
-  # Methods <- cbind(Methods, GBT_frc(insample, fh, ni)) #GBT
-  # 
-  # Methods <- cbind(Methods, KNN_frc(insample, fh, ni)) #KNN
-  # 
-  # Methods <- cbind(Methods, SVR_frc(insample, fh, ni)) #SVR
+  invisible(capture.output(y <- BNN_frc(insample, fh, ni))) #BNN
+  Methods <- cbind(Methods, y)
+
+  Methods <- cbind(Methods, GRNN_frc(insample, fh, ni)) #GRNN
+
+  Methods <- cbind(Methods, RBF_frc(insample, fh, ni)) #RBF
+
+  Methods <- cbind(Methods, CART_frc(insample, fh, ni)) #CART
+
+  Methods <- cbind(Methods, RF_frc(insample, fh, ni)) #RF
+
+  Methods <- cbind(Methods, GBT_frc(insample, fh, ni)) #GBT
+
+  Methods <- cbind(Methods, KNN_frc(insample, fh, ni)) #KNN
+
+  Methods <- cbind(Methods, SVR_frc(insample, fh, ni)) #SVR
 
   # invisible(capture.output(ydot <- GP_frc(insample, fh, ni))) #GP
   # Methods <- cbind(Methods, ydot)
@@ -737,101 +737,101 @@ ML_forc_methods_Global <- function(input){
   Models[[length(Models)+1]] <- list(frc_f) ; ModelNames <- c(ModelNames, "MLP")
   print("Done MLP")
   
-  # #BNN
-  # frc_f <- NULL
-  # for (ssn in c(1:10)){
-  #   modelBNN <-10101
-  #   while (length(modelBNN)==1){
-  #     invisible(capture.output( modelBNN<-tryCatch(model<-brnn(train, as.numeric(test), 
-  #                                                              neurons=(2*ni),normalize=FALSE,
-  #                                                              epochs=500,verbose=F), error=function(e) 100)))
-  #   }
-  #   frc_f[length(frc_f)+1] <- list(modelBNN)
-  # }
-  # Models[[length(Models)+1]] <- list(frc_f) ; ModelNames <- c(ModelNames, "BNN")
-  # print("Done BNN")
-  # 
-  # #GRNN
-  # MSE <- c()
-  # ssize <- c(1:length(test)) 
-  # train_ho <- sample(ssize, round(0.8*length(test),0))
-  # test_ho <- ssize[ssize %!in% train_ho]
-  # train_tr <- train[train_ho,] ; test_tr <- test[train_ho]
-  # train_va <- train[test_ho,] ; test_va <- test[test_ho]
-  # sigmalist <- c(0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.85, 1.00)
-  # for (sid in sigmalist){
-  #   modelGRNN <- smooth(learn(cbind(test_tr,train_tr)), sigma=sid)
-  #   fitted.m <- unlist(lapply(c(1:nrow(train_va)), function(x) guess(modelGRNN, t(train_va[x,]))))
-  #   MSE <- c(MSE, mean((fitted.m - as.numeric(test_va))^2))
-  # }
-  # modelGRNN <- smooth(learn(cbind(test,train)), sigma=sigmalist[which.min(MSE)])
-  # Models[length(Models)+1] <- list(modelGRNN) ; ModelNames <- c(ModelNames, "GRNN")
-  # print("Done GRNN")
-  # 
-  # #RBF
-  # frc_f <- NULL
-  # for (ssn in c(1:10)){
-  #   modelRBF <- rbf(train, test,
-  #                   size = (2*ni), maxit = 500,
-  #                   initFunc = "RBF_Weights_Kohonen", initFuncParams = c(0, 1, 0, 0.02, 0.04),
-  #                   learnFunc = "RadialBasisLearning", updateFunc = "Topological_Order", 
-  #                   shufflePatterns = FALSE, linOut = TRUE)
-  #   frc_f[length(frc_f)+1] <- list(modelRBF)
-  # }
-  # Models[[length(Models)+1]] <- list(frc_f) ; ModelNames <- c(ModelNames, "RBF")
-  # print("Done RBF")
-  # 
-  # #CART
-  # modelCART <- rpart(Y~., method="anova", data= dftest)
-  # modelCART <- prune(modelCART, cp = modelCART$cptable[which.min(modelCART$cptable[,"xerror"]),"CP"])
-  # Models[length(Models)+1] <- list(modelCART) ; ModelNames <- c(ModelNames, "CART")
-  # print("Done CART")
-  # 
-  # #RF
-  # modelRF <- randomForest(formula = Y ~ .,  data= dftest, ntree=500)
-  # Models[length(Models)+1] <- list(modelRF) ; ModelNames <- c(ModelNames, "RF")
-  # print("Done RF")
-  # 
-  # #GBT
-  # modelGBT <- 100100
-  # returnML<-tryCatch(modelGBT <- gbm(Y ~ . ,data = dftest ,distribution = "gaussian", 
-  #                                    n.trees = 500, shrinkage = 0.01, interaction.depth = 4, cv.folds = 3)
-  #                    , error=function(e) 100)
-  # if (length(returnML)==1){
-  #   modelGBT <- rpart(Y~., method="anova", data= dftest)
-  #   opt_tr <- 1
-  # }else{
-  #   opt_tr <- gbm.perf(modelGBT, method = "cv", plot.it = F)
-  # }
-  # Models[length(Models)+1] <- list(modelGBT) ; ModelNames <- c(ModelNames, "GBT")
-  # print("Done GBT")
-  # 
-  # #KNN
-  # MSE <- c()
-  # ssize <- c(1:length(test)) 
-  # train_ho <- sample(ssize, round(0.8*length(test),0))
-  # test_ho <- ssize[ssize %!in% train_ho]
-  # train_tr <- train[train_ho,] ; test_tr <- test[train_ho]
-  # train_va <- train[test_ho,] ; test_va <- test[test_ho]
-  # Klist <- seq(3,31,2)
-  # for (nK in Klist){
-  #   modelKNN <- knnreg(train_tr, test_tr, k = nK)   
-  #   fitted.m <- unlist(lapply(c(1:nrow(train_va)), function(x) predict(modelKNN, t(train_va[x,])))) 
-  #   MSE <- c(MSE, mean((fitted.m - as.numeric(test_va))^2))
-  # }
-  # modelKNN <- knnreg(train, test, k = Klist[which.min(MSE)])
-  # Models[length(Models)+1] <- list(modelKNN) ; ModelNames <- c(ModelNames, "KNN")
-  # print("Done KNN")
-  # 
-  # #SVR
-  # modelSVR <- svm(Y~., scale=F, data= dftest, type="nu-regression")
-  # Models[length(Models)+1] <- list(modelSVR) ; ModelNames <- c(ModelNames, "SVR")
-  # print("Done SVR")
-  # 
-  # #GP
-  # invisible(capture.output( modelGP <- gausspr(x=train, y=test, scaled = FALSE, kernel="besseldot") ))
-  # Models[length(Models)+1] <- list(modelGP) ; ModelNames <- c(ModelNames, "GP")
-  # print("Done GP")
+  #BNN
+  frc_f <- NULL
+  for (ssn in c(1:10)){
+    modelBNN <-10101
+    while (length(modelBNN)==1){
+      invisible(capture.output( modelBNN<-tryCatch(model<-brnn(train, as.numeric(test), 
+                                                               neurons=(2*ni),normalize=FALSE,
+                                                               epochs=500,verbose=F), error=function(e) 100)))
+    }
+    frc_f[length(frc_f)+1] <- list(modelBNN)
+  }
+  Models[[length(Models)+1]] <- list(frc_f) ; ModelNames <- c(ModelNames, "BNN")
+  print("Done BNN")
+  
+  #GRNN
+  MSE <- c()
+  ssize <- c(1:length(test)) 
+  train_ho <- sample(ssize, round(0.8*length(test),0))
+  test_ho <- ssize[ssize %!in% train_ho]
+  train_tr <- train[train_ho,] ; test_tr <- test[train_ho]
+  train_va <- train[test_ho,] ; test_va <- test[test_ho]
+  sigmalist <- c(0.05, 0.10, 0.15, 0.20, 0.30, 0.40, 0.50, 0.60, 0.70, 0.85, 1.00)
+  for (sid in sigmalist){
+    modelGRNN <- smooth(learn(cbind(test_tr,train_tr)), sigma=sid)
+    fitted.m <- unlist(lapply(c(1:nrow(train_va)), function(x) guess(modelGRNN, t(train_va[x,]))))
+    MSE <- c(MSE, mean((fitted.m - as.numeric(test_va))^2))
+  }
+  modelGRNN <- smooth(learn(cbind(test,train)), sigma=sigmalist[which.min(MSE)])
+  Models[length(Models)+1] <- list(modelGRNN) ; ModelNames <- c(ModelNames, "GRNN")
+  print("Done GRNN")
+  
+  #RBF
+  frc_f <- NULL
+  for (ssn in c(1:10)){
+    modelRBF <- rbf(train, test,
+                    size = (2*ni), maxit = 500,
+                    initFunc = "RBF_Weights_Kohonen", initFuncParams = c(0, 1, 0, 0.02, 0.04),
+                    learnFunc = "RadialBasisLearning", updateFunc = "Topological_Order", 
+                    shufflePatterns = FALSE, linOut = TRUE)
+    frc_f[length(frc_f)+1] <- list(modelRBF)
+  }
+  Models[[length(Models)+1]] <- list(frc_f) ; ModelNames <- c(ModelNames, "RBF")
+  print("Done RBF")
+  
+  #CART
+  modelCART <- rpart(Y~., method="anova", data= dftest)
+  modelCART <- prune(modelCART, cp = modelCART$cptable[which.min(modelCART$cptable[,"xerror"]),"CP"])
+  Models[length(Models)+1] <- list(modelCART) ; ModelNames <- c(ModelNames, "CART")
+  print("Done CART")
+  
+  #RF
+  modelRF <- randomForest(formula = Y ~ .,  data= dftest, ntree=500)
+  Models[length(Models)+1] <- list(modelRF) ; ModelNames <- c(ModelNames, "RF")
+  print("Done RF")
+  
+  #GBT
+  modelGBT <- 100100
+  returnML<-tryCatch(modelGBT <- gbm(Y ~ . ,data = dftest ,distribution = "gaussian", 
+                                     n.trees = 500, shrinkage = 0.01, interaction.depth = 4, cv.folds = 3)
+                     , error=function(e) 100)
+  if (length(returnML)==1){
+    modelGBT <- rpart(Y~., method="anova", data= dftest)
+    opt_tr <- 1
+  }else{
+    opt_tr <- gbm.perf(modelGBT, method = "cv", plot.it = F)
+  }
+  Models[length(Models)+1] <- list(modelGBT) ; ModelNames <- c(ModelNames, "GBT")
+  print("Done GBT")
+  
+  #KNN
+  MSE <- c()
+  ssize <- c(1:length(test)) 
+  train_ho <- sample(ssize, round(0.8*length(test),0))
+  test_ho <- ssize[ssize %!in% train_ho]
+  train_tr <- train[train_ho,] ; test_tr <- test[train_ho]
+  train_va <- train[test_ho,] ; test_va <- test[test_ho]
+  Klist <- seq(3,31,2)
+  for (nK in Klist){
+    modelKNN <- knnreg(train_tr, test_tr, k = nK)   
+    fitted.m <- unlist(lapply(c(1:nrow(train_va)), function(x) predict(modelKNN, t(train_va[x,])))) 
+    MSE <- c(MSE, mean((fitted.m - as.numeric(test_va))^2))
+  }
+  modelKNN <- knnreg(train, test, k = Klist[which.min(MSE)])
+  Models[length(Models)+1] <- list(modelKNN) ; ModelNames <- c(ModelNames, "KNN")
+  print("Done KNN")
+  
+  #SVR
+  modelSVR <- svm(Y~., scale=F, data= dftest, type="nu-regression")
+  Models[length(Models)+1] <- list(modelSVR) ; ModelNames <- c(ModelNames, "SVR")
+  print("Done SVR")
+  
+  #GP
+  invisible(capture.output( modelGP <- gausspr(x=train, y=test, scaled = FALSE, kernel="besseldot") ))
+  Models[length(Models)+1] <- list(modelGP) ; ModelNames <- c(ModelNames, "GP")
+  print("Done GP")
   ######################################################################################
   
   ################################# Generate forecasts ##################################
@@ -900,8 +900,7 @@ ML_forc_methods_Global <- function(input){
   return(Methods)
 }
 
-# ML_names <- c("MLP","BNN","GRNN","RBF","CART","RF","GBT","KNN","SVR","GP")
-ML_names <- c("MLP")
+ML_names <- c("MLP","BNN","GRNN","RBF","CART","RF","GBT","KNN","SVR","GP")
 S_names <-c("Naive", "sNaive", "SES", "MA", "Croston", "optCroston","SBA", "optSBA", "SBJ", "TSB", "ADIDA", "iADIDA", "iMAPA")
 nerrors <- c("sME", "sMAE", "sMSE")
 '%!in%' <- function(x,y)!('%in%'(x,y))
@@ -909,8 +908,7 @@ nerrors <- c("sME", "sMAE", "sMSE")
 fh = 12
 model_set <- "ML-G"
 
-# cl = registerDoSNOW(makeCluster(10, type = "SOCK"))
-cl = registerDoSNOW(makeCluster(3, type = "SOCK"))
+cl = registerDoSNOW(makeCluster(20, type = "SOCK"))
 
 #Forecasting and estimation of errors
 
