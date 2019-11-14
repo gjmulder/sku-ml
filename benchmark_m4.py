@@ -24,6 +24,7 @@ from os import environ
 import traceback
 from math import log
 #from itertools import repeat
+from datetime import timedelta
 
 import mxnet as mx
 from gluonts.dataset.common import ListDataset
@@ -88,26 +89,26 @@ def compute_errors(train, test, y_hats):
         errs.append(sMSE(train.iloc[idx].dropna().values, test.iloc[idx].values, y_hats.iloc[idx].values))
     return np.mean(errs)
 
-def ts_to_dict(idx, ts):
+def ts_to_dict(idx, ts, colnames):
     ts_srs = pd.Series(ts, name='ts')
     
     # Find the first non NaN
     first_valid = ts_srs[ts_srs.notnull()].index[0]
     rec = {
-        "start"             : "2017-01-01 00:00",
+        "start"             : str(pd.to_datetime("2017-01-01 00:00") + timedelta(days=int(colnames[int(first_valid)]))),
         "target"            : ts_srs[first_valid:].values, 
         "feat_static_cat"   : [idx],
     } 
 #    print("Target len: %d, feat_dynamic_real shape: %s" % (len(rec['target']), rec['feat_dynamic_real'].shape))
     return rec
 
-def ts_to_dict_1hot(idx, ts, one_hot):
+def ts_to_dict_1hot(idx, ts, one_hot, colnames):
     one_hot_ts = one_hot.append(pd.Series(ts, index=one_hot.columns, name='ts')).transpose()
     
     # Find the first non NaN
     first_valid = one_hot_ts['ts'][one_hot_ts['ts'].notnull()].index[0]
     rec = {
-        "start"             : "2017-01-01 00:00",
+        "start"             : str(pd.to_datetime("2017-01-01 00:00") + timedelta(days=int(colnames[int(first_valid)]))),
         "target"            : one_hot_ts['ts'][first_valid:].values, 
         "feat_static_cat"   : [idx],
         "feat_dynamic_real" : one_hot_ts[first_valid:].drop(['ts'], axis=1).transpose().values,
@@ -139,9 +140,9 @@ def forecast(data, cfg):
     
     train_data_list = train_data.values.tolist()
     if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
-        train_dict = [ts_to_dict(idx, train_data_list[idx]) for idx in range(len(train_data_list))]
+        train_dict = [ts_to_dict(idx, train_data_list[idx], train_data.columns.tolist()) for idx in range(len(train_data_list))]
     else:
-        train_dict = [ts_to_dict_1hot(idx, train_data_list[idx], train_1hot) for idx in range(len(train_data_list))]
+        train_dict = [ts_to_dict_1hot(idx, train_data_list[idx], train_1hot, train_data.columns.tolist()) for idx in range(len(train_data_list))]
     gluon_train = ListDataset(train_dict, freq=freq)
 
 #    trainer=Trainer(
@@ -219,14 +220,14 @@ def forecast(data, cfg):
     logger.info("Fitting: %s" % cfg['model']['type'])
     model = estimator.train(gluon_train)
     
-    test_data = data.iloc[ : , -prediction_length:]
-    test_1hot = dow_1_hot.iloc[ : , -prediction_length:]
+    test_data = data
+    test_1hot = dow_1_hot
     
     test_data_list = test_data.values.tolist()
     if cfg['model']['type'] in ['SimpleFeedForwardEstimator', 'DeepFactorEstimator']:
-        test_dict = [ts_to_dict(idx, test_data_list[idx]) for idx in range(len(test_data_list))]
+        test_dict = [ts_to_dict(idx, test_data_list[idx], test_data.columns.tolist()) for idx in range(len(test_data_list))]
     else:
-        test_dict = [ts_to_dict_1hot(idx, test_data_list[idx], test_1hot) for idx in range(len(test_data_list))]
+        test_dict = [ts_to_dict_1hot(idx, test_data_list[idx], test_1hot, test_data.columns.tolist()) for idx in range(len(test_data_list))]
     gluon_test = ListDataset(test_dict, freq=freq)
     
     forecast_it, ts_it = make_evaluation_predictions(
@@ -255,7 +256,7 @@ def gluon_fcast(cfg):
 #            sMSE_idx = forecast(sample_data[idx-1].iloc[ : , : -prediction_length], cfg)
             sMSE_idx = forecast(sample_data[idx-1], cfg)
             results.append(sMSE_idx)
-            if (sMSE_idx > 2 * max_sMSE) or (idx > 1 and np.mean(results) > max_sMSE):
+            if sMSE_idx > max_sMSE:
                 logger.warning("Aborting run due to large sMSEs: %s" % results)
                 return {'loss': None, 'status': STATUS_FAIL, 'cfg' : cfg, 'results': results, 'build_url' : environ.get("BUILD_URL")}
             
