@@ -727,15 +727,15 @@ ML_forc_methods_Global <- function(input){
   Models <- NULL ; ModelNames <- c()
   #MLP
   frc_f <- NULL
-  for (ssn in c(1:10)){
-    modelMLP <- mlp(train, test, 
-                    size = (2*ni), maxit = 500,initFunc = "Randomize_Weights", 
-                    learnFunc = "SCG", hiddenActFunc = "Act_Logistic", 
-                    shufflePatterns = FALSE, linOut = TRUE) 
-    frc_f[length(frc_f)+1] <- list(modelMLP)
-  }
-  Models[[length(Models)+1]] <- list(frc_f) ; ModelNames <- c(ModelNames, "MLP")
-  print("Done MLP")
+  # for (ssn in c(1:10)){
+  #   modelMLP <- mlp(train, test, 
+  #                   size = (2*ni), maxit = 500,initFunc = "Randomize_Weights", 
+  #                   learnFunc = "SCG", hiddenActFunc = "Act_Logistic", 
+  #                   shufflePatterns = FALSE, linOut = TRUE) 
+  #   frc_f[length(frc_f)+1] <- list(modelMLP)
+  # }
+  # Models[[length(Models)+1]] <- list(frc_f) ; ModelNames <- c(ModelNames, "MLP")
+  # print("Done MLP")
   
   #BNN
   frc_f <- NULL
@@ -900,6 +900,7 @@ ML_forc_methods_Global <- function(input){
   return(Methods)
 }
 
+# ML_names <- c("MLP","BNN","GRNN","RBF","CART","RF","GBT","KNN","SVR","GP")
 ML_names <- c("MLP","BNN","GRNN","RBF","CART","RF","GBT","KNN","SVR","GP")
 S_names <-c("Naive", "sNaive", "SES", "MA", "Croston", "optCroston","SBA", "optSBA", "SBJ", "TSB", "ADIDA", "iADIDA", "iMAPA")
 nerrors <- c("sME", "sMAE", "sMSE")
@@ -915,15 +916,15 @@ cl = registerDoSNOW(makeCluster(10, type = "SOCK"))
 Error_matrix <- NULL
 for (sn in 1:5){
   if (sn==1){
-    input <- read.csv("sample1.csv", stringsAsFactors =  F) 
+    input <- head(read.csv("sample1.csv", stringsAsFactors =  F), -fh)
   }else if (sn==2){
-    input <- read.csv("sample2.csv", stringsAsFactors =  F) 
+    input <- head(read.csv("sample2.csv", stringsAsFactors =  F), -fh) 
   }else if (sn==3){
-    input <- read.csv("sample3.csv", stringsAsFactors =  F) 
+    input <- head(read.csv("sample3.csv", stringsAsFactors =  F), -fh) 
   }else if (sn==4){
-    input <- read.csv("sample4.csv", stringsAsFactors =  F) 
+    input <- head(read.csv("sample4.csv", stringsAsFactors =  F), -fh) 
   }else if (sn==5){
-    input <- read.csv("sample5.csv", stringsAsFactors =  F) 
+    input <- head(read.csv("sample5.csv", stringsAsFactors =  F), -fh) 
   }
   input$X <- NULL
   if (model_set=="ML-G"){
@@ -932,9 +933,13 @@ for (sn in 1:5){
     if (model_set=="S"){
       Error_matrix <- rbind(Error_matrix, foreach(tsi=1:nrow(input), .combine='rbind', .packages=c('zoo')) %dopar% S_forc_methods(tsi))
     }else if (model_set=="ML"){
-      Error_matrix1 <- foreach(tsi=1:nrow(input), .combine='rbind', .packages=c('zoo','RSNNS','robustbase','brnn','grnn','caret','rpart',
-                                                                                                   'e1071','kernlab','ddpcr','gbm','randomForest','EnvStats','plyr')) %dopar% ML_forc_methods(tsi)
-      Error_matrix2 <- foreach(tsi=1:nrow(input), .combine='rbind', .packages=c('zoo','RSNNS','robustbase','brnn','grnn','caret','rpart',
+      # Error_matrix1 <- foreach(tsi=1:nrow(input), .combine='rbind', .packages=c('zoo','RSNNS','robustbase','brnn','grnn','caret','rpart',
+      #                                                                           'e1071','kernlab','ddpcr','gbm','randomForest','EnvStats','plyr')) %dopar% ML_forc_methods(tsi)
+      # Error_matrix2 <- foreach(tsi=1:nrow(input), .combine='rbind', .packages=c('zoo','RSNNS','robustbase','brnn','grnn','caret','rpart',
+      #                                                                           'e1071','kernlab','ddpcr','gbm','randomForest','EnvStats','plyr')) %do% ML_forc_methods2(tsi)
+      Error_matrix1 <- foreach(tsi=1:nrow(input), .combine='rbind', .packages=c('zoo','robustbase','brnn','grnn','caret','rpart',
+                                                                                'e1071','kernlab','ddpcr','gbm','randomForest','EnvStats','plyr')) %dopar% ML_forc_methods(tsi)
+      Error_matrix2 <- foreach(tsi=1:nrow(input), .combine='rbind', .packages=c('zoo','robustbase','brnn','grnn','caret','rpart',
                                                                                 'e1071','kernlab','ddpcr','gbm','randomForest','EnvStats','plyr')) %do% ML_forc_methods2(tsi)
       Error_matrix <- rbind(Error_matrix, merge(Error_matrix1, Error_matrix2, by=c("Error","id","dataset"), all = T))
     }
